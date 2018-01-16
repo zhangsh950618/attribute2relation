@@ -5,6 +5,7 @@ import numpy as np
 import os
 import argparse
 import math
+import random
 import os.path
 from multiprocessing import JoinableQueue,Queue,Process
 from tensorflow.contrib.tensorboard.plugins import projector
@@ -61,7 +62,7 @@ class TransE:
         start=0
         while start<n_triple:
             end=min(start+batch_size,n_triple)
-            yield self.__train_triple[rand_idx[start:end]]
+            yield (self.__train_triple[rand_idx[start:end]], self.__train_candidate[start:end, :])
             start=end
     
     def testing_data(self,batch_size=100):
@@ -363,20 +364,58 @@ def normalize_ops(model: TransE):
         return model.normalize_embedding() 
 
 def data_generator_func(in_queue: JoinableQueue,out_queue: Queue,right_num,left_num,tr_h,hr_t,ht_r,n_entity,n_relation):
+    # while True:
+    #     dat = in_queue.get()
+    #     if dat is None:
+    #         break
+    #     pos_triple_batch = []
+    #     neg_triple_batch = []
+        
+    #     htr, candidates=dat
+
+    #     # random neg
+    #     for i in range(1):
+    #         tmp_pos_triple_batch= list(htr)
+    #         tmp_neg_entity_triple_batch = list(htr)
+    #         #construct negative-triple
+    #         for idx in range(htr.shape[0]):
+    #             h=htr[idx,0]
+    #             t=htr[idx,1]
+    #             r=htr[idx,2]
+    #             tmp_t=np.random.randint(0,n_entity-1)
+    #             while tmp_t in hr_t[h][r]:
+    #                 tmp_t=np.random.randint(0,n_entity-1)
+    #             tmp_neg_entity_triple_batch[idx][1]=tmp_t
+    #         pos_triple_batch += tmp_pos_triple_batch
+    #         neg_triple_batch += tmp_neg_entity_triple_batch
+    #     # candidate as neg 
+    #     # for idx in range(htr.shape[0]):
+    #     #     h=htr[idx,0]
+    #     #     t=htr[idx,1]
+    #     #     r=htr[idx,2]
+    #     #     for c in candidates[idx]:
+    #     #         if c == 0:
+    #     #             break
+    #     #         tmp_htr = htr[idx]
+    #     #         pos_triple_batch += tmp_htr
+    #     #         tmp_htr[1] = c
+    #     #         neg_triple_batch += tmp_htr
+
+    #     out_queue.put((np.asarray(pos_triple_batch),np.asarray(neg_triple_batch)))
     while True:
         dat = in_queue.get()
         if dat is None:
             break
         pos_triple_batch = []
         neg_triple_batch = []
-        
-        neg_rel_triple_batch=dat.copy()
-        htr=dat.copy()
+        tripe, candidates = dat
+        neg_rel_triple_batch=tripe.copy()
+        htr=tripe.copy()
 
-        # random neg
+
         for i in range(1):
-            tmp_pos_triple_batch= list(dat.copy())
-            tmp_neg_entity_triple_batch = list(dat.copy())
+            tmp_pos_triple_batch= list(tripe.copy())
+            tmp_neg_entity_triple_batch = list(tripe.copy())
             #construct negative-triple
             for idx in range(htr.shape[0]):
                 h=htr[idx,0]
@@ -388,8 +427,32 @@ def data_generator_func(in_queue: JoinableQueue,out_queue: Queue,right_num,left_
                 tmp_neg_entity_triple_batch[idx][1]=tmp_t
             pos_triple_batch += tmp_pos_triple_batch
             neg_triple_batch += tmp_neg_entity_triple_batch
-        out_queue.put((np.asarray(pos_triple_batch),np.asarray(neg_triple_batch)))
+
         # candidate as neg 
+        for idx in range(htr.shape[0]):
+            h=htr[idx,0]
+            t=htr[idx,1]
+            r=htr[idx,2]
+            pos_tmp_htr_batch = []
+            neg_tmp_htr_batch = []
+            for c in candidates[idx]:
+                if c == 0:
+                    break
+                if t == c:
+                    continue
+                pos_tmp_htr = htr[idx]
+                pos_tmp_htr_batch.append(pos_tmp_htr)
+                neg_tmp_htr = pos_tmp_htr.copy()
+                neg_tmp_htr[1] = c
+                neg_tmp_htr_batch.append(neg_tmp_htr)
+            batch_candidate_len = len(pos_tmp_htr_batch)
+            if batch_candidate_len == 0:
+                continue
+            rand_idx = random.choice([i for i in range(batch_candidate_len)])
+            pos_triple_batch.append(pos_tmp_htr_batch[rand_idx])
+            neg_triple_batch.append(neg_tmp_htr_batch[rand_idx])
+        out_queue.put((np.asarray(pos_triple_batch),np.asarray(neg_triple_batch)))
+        
 
 def candidate_evaluation(testing_data,candidates, tail_pred,tr_h,hr_t,ht_r):
     
@@ -541,18 +604,18 @@ def worker_func(in_queue: JoinableQueue, out_queue: Queue,tr_h,hr_t,ht_r):
 
 def main(_):
     parser = argparse.ArgumentParser(description='TransE.')
-    parser.add_argument('--lr', dest='lr', type=float, help="Learning rate", default=0.005)
+    parser.add_argument('--lr', dest='lr', type=float, help="Learning rate", default=0.001)
     parser.add_argument('--L1_flag', dest='L1_flag', type=int, help="norm method", default=0)
-    parser.add_argument('--margin', dest='margin', type=int, help="margin", default=1)
+    parser.add_argument('--margin', dest='margin', type=int, help="margin", default=5)
     parser.add_argument('--data', dest='data_dir', type=str, help="Data folder", default='../../data/baike/')
     parser.add_argument("--dim", dest='dim', type=int, help="Embedding dimension", default=150)
-    parser.add_argument("--worker", dest='n_worker', type=int, help="Evaluation worker", default=3)
+    parser.add_argument("--worker", dest='n_worker', type=int, help="Evaluation worker", default=10)
     parser.add_argument("--load_model", dest='load_model', type=str, help="Model file:xxx.meta", default=None)
     parser.add_argument("--max_iter", dest='max_iter', type=int, help="Max iteration", default=100)
     parser.add_argument("--train_batch", dest="train_batch", type=int, help="Training batch size", default=10240)
     parser.add_argument("--eval_batch", dest="eval_batch", type=int, help="Evaluation batch size", default=40960)
     parser.add_argument("--optimizer", dest='optimizer', type=str, help="Optimizer", default='gradient')
-    parser.add_argument("--generator", dest='n_generator', type=int, help="Data generator", default=10)
+    parser.add_argument("--generator", dest='n_generator', type=int, help="Data generator", default=30)
     parser.add_argument("--save_dir", dest='save_dir', type=str, help="Model path", default='./log/')
     parser.add_argument("--save_per", dest='save_per', type=int, help="Save per x iteration", default=50)
     parser.add_argument("--eval_per", dest='eval_per', type=int, help="Evaluate every x iteration", default=5)
@@ -562,7 +625,7 @@ def main(_):
     parser.add_argument("--prefix", dest='prefix', type=str, help="model_prefix", default='neg 1 sample')
     args=parser.parse_args()
 
-    os.environ["CUDA_VISIBLE_DEVICES"]="7"
+    os.environ["CUDA_VISIBLE_DEVICES"]="6"
 
     model=TransE(data_dir=args.data_dir,train_batch=args.train_batch,eval_batch=args.eval_batch,L1_flag=args.L1_flag,margin=args.margin, dim = args.dim)
     pos_triple,neg_triple,train_loss,train_op = train_ops(model,learning_rate=args.lr,optimizer_str=args.optimizer)
@@ -601,8 +664,8 @@ def main(_):
                 accu_loss = 0.0
                 ninst = 0
                 nbatches_count = 0
-                for dat in model.raw_training_data(batch_size=args.train_batch):
-                    raw_training_data_queue.put(dat)
+                for (train_data,candidates) in model.raw_training_data(batch_size=args.train_batch):
+                    raw_training_data_queue.put((train_data, candidates))
                     nbatches_count += 1
                 while nbatches_count > 0:
 
@@ -660,14 +723,14 @@ def main(_):
                     ent_embedding,rel_embedding = sess.run([model.ent_embedding,model.rel_embedding])
                     with open("./summary/candidate_len_list.json", "w") as f:
                         json.dump(candidate_len_list, f)
-                    with open("./summary/acc_list_neg1_l2.json", "w") as f:
+                    with open("./summary/acc_list_neg_1_candidate_l2.json", "w") as f:
                         json.dump(acc_list, f)
                     np.save("./summary/entity_struct_150.npy",ent_embedding)
                     np.save("./summary/relation_struct_150.npy",rel_embedding)
                     np.save("./summary/hit.npy",np.array(hit))
                     np.save("./summary/label.npy",np.array(label))
                     print("End saving ... ")
-
+ 
                     for i in range(args.n_worker):
                         evaluation_queue.put(None)
                     print("waiting for worker finishes their work")

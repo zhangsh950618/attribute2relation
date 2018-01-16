@@ -13,9 +13,10 @@ import os
 # from sklearn.decomposition import PCA
 data_dir = '../../data/baike/'
 def TransE():
-	limit = 10
+	limit = 18
 	start = 1
 	x = json.load(open("./summary/candidate_len_list.json", "r"))[start:limit]
+	acc_limit_full_name = json.load(open("./summary/acc_list_fullname.json", "r"))[start:limit]
 	acc_limit = json.load(open("./summary/acc_list.json", "r"))[start:limit]
 	acc_base = json.load(open("./summary/acc_list_baseline.json", "r"))[start:limit]
 	acc_neg1 = json.load(open("./summary/acc_list_neg1.json", "r"))[start:limit]
@@ -31,6 +32,7 @@ def TransE():
 
 
 	plt.figure()
+	line_acc_limit_full_name = plt.plot(x,acc_limit_full_name, label = 'limit acc full name')
 	line_acc_limit = plt.plot(x,acc_limit, label = 'limit acc')
 	line_acc_base = plt.plot(x,acc_base,label = 'TransE baseline')
 	line_acc_neg1 = plt.plot(x,acc_neg1,label = 'TransE random 1 negtive')

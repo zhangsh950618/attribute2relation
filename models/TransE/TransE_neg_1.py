@@ -659,7 +659,7 @@ def main(_):
                     ent_embedding,rel_embedding = sess.run([model.ent_embedding,model.rel_embedding])
                     with open("./summary/candidate_len_list.json", "w") as f:
                         json.dump(candidate_len_list, f)
-                    with open("./summary/acc_list_neg1_l2.json", "w") as f:
+                    with open("./summary/acc_list_neg1_l2_candidate_from_name_baike.json", "w") as f:
                         json.dump(acc_list, f)
                     np.save("./summary/entity_struct_150.npy",ent_embedding)
                     np.save("./summary/relation_struct_150.npy",rel_embedding)
