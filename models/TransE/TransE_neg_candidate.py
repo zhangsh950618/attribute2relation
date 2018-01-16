@@ -435,22 +435,14 @@ def data_generator_func(in_queue: JoinableQueue,out_queue: Queue,right_num,left_
             r=htr[idx,2]
             pos_tmp_htr_batch = []
             neg_tmp_htr_batch = []
-            for c in candidates[idx]:
-                if c == 0:
-                    break
-                if t == c:
-                    continue
-                pos_tmp_htr = htr[idx]
-                pos_tmp_htr_batch.append(pos_tmp_htr)
-                neg_tmp_htr = pos_tmp_htr.copy()
-                neg_tmp_htr[1] = c
-                neg_tmp_htr_batch.append(neg_tmp_htr)
-            batch_candidate_len = len(pos_tmp_htr_batch)
-            if batch_candidate_len == 0:
+            c = random.choice(candidates[idx])
+            if c == 0 or t == c:
                 continue
-            rand_idx = random.choice([i for i in range(batch_candidate_len)])
-            pos_triple_batch.append(pos_tmp_htr_batch[rand_idx])
-            neg_triple_batch.append(neg_tmp_htr_batch[rand_idx])
+            pos_tmp_htr = htr[idx]
+            neg_tmp_htr = pos_tmp_htr.copy()
+            neg_tmp_htr[1] = c
+            pos_triple_batch.append(pos_tmp_htr)
+            neg_triple_batch.append(neg_tmp_htr)
         out_queue.put((np.asarray(pos_triple_batch),np.asarray(neg_triple_batch)))
         
 
