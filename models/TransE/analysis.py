@@ -140,34 +140,46 @@ def vis_error():
 def ana_error():
 	relation = []
 	relation_error = []
+	entity_error = []
+	entity = []
 	head_error = []
 	tail_error = []
-	id2info = json.load(open("id2info.json", "r"))
+	# id2info = json.load(open("id2info.json", "r"))
 	with open(os.path.join(data_dir, "test.txt"), "r") as f:
 		for l in f:
 			h,r,t = l.split()[:3]
 			relation.append(r)
+			entity.append(t)
 	relation_counter = Counter(relation)
+	entity_counter = Counter(entity)
 	relation_dic = {}
+	entity_dic = {}
 	for key,num in relation_counter.most_common(10000):
 		relation_dic[key] = num
+	for key,num in entity_counter.most_common(10000):
+		entity_dic[key] = num
 	with open("error.json", "r") as f:
 		for i, l in enumerate(f):
 			h,r,t,hit_ent,c_list = json.loads(l)
 			relation_error.append(r)
-			if r == "所属专辑":
-				print("*" * 80)
-				print(id2info[h])
-				print(r)
-				print(id2info[t])
-				print(id2info[hit_ent])
+			entity_error.append(t)
+			# if r == "所属专辑":
+			# 	print("*" * 80)
+			# 	print(id2info[h])
+			# 	print(r)
+			# 	print(id2info[t])
+			# 	print(id2info[hit_ent])
 	relation_error_counter = Counter(relation_error)
+	entity_error_counter = Counter(entity_error)
 	for key,num in relation_error_counter.most_common(100):
 		print("|", key,"|", num, "|",round(1.0 * num/i, 2),"|", round(1.0 * num / relation_dic[key], 2), "|")
+	for key,num in entity_error_counter.most_common(10000):
+		print("|", key,"|", num, "|",round(1.0 * num/i, 2),"|", round(1.0 * num / entity_dic[key], 2), "|")
 
 if __name__ == "__main__":
-	TransE()
+	# TransE()
 	# na()
 	# pca()
-	# ana_error()
+	ana_error()
 	# vis_error()
+	# gen_error()

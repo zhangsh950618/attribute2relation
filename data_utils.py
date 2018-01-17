@@ -11,7 +11,7 @@ import os
 import networkx as nx 
 from collections import Counter
 import itertools  
-
+import numpy as np 
 DIRNAME = './data/baike/'
 def get_collection():
 	client = MongoClient()
@@ -337,7 +337,7 @@ def gen_candidate4data(filename):
 	with open(os.path.join(DIRNAME,filename+"_with_candidate.json"), "w") as f_candidate:
 		json.dump(candidates, f_candidate)
 def eval_candidate():
-	candidates = json.load(open(os.path.join(DIRNAME,"candidate.json"), "r"))
+	candidates = json.load(open(os.path.join(DIRNAME,"train_with_candidate.json"), "r"))
 	test_len = len(candidates)
 	print("tot test len : ", test_len)
 	c_list = []
@@ -360,6 +360,7 @@ def eval_candidate():
 			acc_list.append(round(tail_in_candidates[i] / candidate_len[i], 3))
 	with open("./models/TransE/summary/acc_list.json", "w") as f:
 		json.dump(acc_list, f)
+	print("recall : ", 1.0 * np.sum(np.array(tail_in_candidates))/ np.sum(np.array(candidate_len)))
 
 
 def get_id2description():
@@ -454,7 +455,7 @@ if __name__ == '__main__':
 	# divide_data_set()
 	# gen_triple_with_description()
 	# largest_connected_component()
-	divide_data_set()
-	gen_candidate4data('test')
+	# divide_data_set()
+	gen_candidate4data('valid')
 	# gen_candidate_with_description('test_with_candidate')
 	# eval_candidate()
